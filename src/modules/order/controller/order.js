@@ -1,0 +1,117 @@
+import productModel from "../../../../DB/model/Product.model.js";
+import couponModel from "../../../../DB/model/Coupon.model.js";
+import cartModel from "../../../../DB/model/Cart.model.js";
+import orderModel from "../../../../DB/model/Order.model.js";
+import payment from "../../../service/payment.js";
+import Stripe from "stripe";
+
+
+
+
+export const createOrder = async (req, res, next) => {
+
+    const { products, address, phone, couponName, } = req.body
+    //check coupon availability
+    if (couponName) {
+        const coupon = await couponModel.findOne({
+            name: couponName.toLowerCase(),
+            usedBy: { $nin: req.user._id },
+            isDeleted: false
+        })
+        if (!coupon ||
+            (parseInt(Date.now() / 1000) > parseInt((coupon?.expire?.getTime() / 1000)))
+        ) {
+            return next(new Error("In-valid or expire coupon", { cause: 400 }))
+        }
+        req.body.coupon = coupon
+    }
+
+    //check product availability
+    let sumTotal = 0;
+    let finalProductList = []
+    for (let i = 0; i < products.length; i++) {
+        const product = products[i];
+        const checkedProduct = await productModel.findOne({
+            _id: product.productId,
+            stock: { $gte: product.quantity },
+            isDeleted: false
+        })
+        if (!checkedProduct) {
+            return next(new Error(`Fail to this product name:${product.name}`, { cause: 400 }))
+        }
+        product.name = checkedProduct.name;
+        product.unitPrice = checkedProduct.finalPrice;
+        product.finalPrice = product.unitPrice * product.quantity
+        finalProductList.push(product)
+
+        sumTotal += product.finalPrice
+    }
+    //create order
+    const order = await orderModel.create({
+        userId: req.user._id,
+        products: finalProductList,
+        couponId: req.body.coupon?._id,
+        finalPrice: sumTotal - (sumTotal * ((req.body.coupon?.amount || 0) / 100)),
+        address,
+        phone,
+        paymentType: req.body.paymentType || 'cash'
+    })
+    if (!order) { return next(new Error('Fail to place this order', { cause: 400 })) }
+
+    // Decrease products stock
+    for (const product of products) {
+        await productModel.updateOne(
+            { _id: product.productId },
+            { $inc: { stock: - product.quantity } }
+        )
+    }
+    //add user to coupon
+    if (couponName) {
+        await couponModel.updateOne(
+            { name: couponName.toLowerCase() },
+            { $addToSet: { usedBy: req.user._id } }
+        )
+    }
+    //reset cart
+    await cartModel.updateOne({ userId: req.user._id }, { products: [] })
+
+
+
+    if (order.paymentType == 'card') {
+
+        const stripe = new Stripe(process.env.STRIPE_KEY);
+        if (req.body.coupon) {
+            const coupon = await stripe.coupons.create({ percent_off: req.body.coupon.amount, duration: 'once' });
+            req.body.couponId = coupon.id
+        }
+        const { url } = await payment({
+            stripe,
+            customer_email: req.user.email,
+            metadata: {
+                orderId: order._id
+            },
+            line_items: order.products.map(product => {
+                return {
+
+                    price_data: {
+                        currency: 'usd',
+                        product_data: {
+                            name: product.name
+                        },
+                        unit_amount: product.unitPrice * 100,
+                    },
+                    quantity: product.quantity,
+
+                }
+
+
+            }),
+            discounts: req.body.couponId ? [{ coupon: req.body.couponId }] : []
+        })
+        return res.status(201).json({ message: "Done", type: "card", url })
+    }
+
+
+
+    return res.status(201).json({ message: "Done", type: "cash" })
+}
