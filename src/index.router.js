@@ -17,7 +17,7 @@ import { webHook } from './modules/order/controller/order.js'
 const initApp = (app, express) => {
 
 
-    router.post('/webhook', express.raw({ type: 'application/json' }),webHook);
+    app.post('/webhook', express.raw({ type: 'application/json' }),webHook);
 
     app.use(cors())
     //convert Buffer Data
