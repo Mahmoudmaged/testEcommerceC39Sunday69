@@ -16,7 +16,7 @@ const orderSchema = new Schema({
     couponId: { type: Types.ObjectId, ref: 'Coupon' },
 
     address: String,
-    phone: String,
+    phone: [String],
     status: {
         type: String,
         default: "placed",

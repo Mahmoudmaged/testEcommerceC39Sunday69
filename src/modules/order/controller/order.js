@@ -54,7 +54,8 @@ export const createOrder = async (req, res, next) => {
         finalPrice: sumTotal - (sumTotal * ((req.body.coupon?.amount || 0) / 100)),
         address,
         phone,
-        paymentType: req.body.paymentType || 'cash'
+        paymentType: req.body.paymentType || 'cash',
+        status: req.body.paymentType == "card" ? 'waitPayment' : 'placed'
     })
     if (!order) { return next(new Error('Fail to place this order', { cause: 400 })) }
 
@@ -114,4 +115,33 @@ export const createOrder = async (req, res, next) => {
 
 
     return res.status(201).json({ message: "Done", type: "cash" })
+}
+
+
+export const webHook = async (req, res) => {
+    const stripe = new Stripe(process.env.STRIPE_KEY);
+    const sig = req.headers['stripe-signature'];
+
+    let event;
+
+    try {
+        event = stripe.webhooks.constructEvent(req.body, sig, process.env.endpointSecret);
+    } catch (err) {
+        res.status(400).send(`Webhook Error: ${err.message}`);
+        return;
+    }
+    console.log(event);
+    if (event.type != 'checkout.session.completed') {
+        const checkoutSessionCompleted = event.data.object;
+        const { orderId } = checkoutSessionCompleted.metadata;
+        const order = await orderModel.findOneAndDelete({ _id: orderId }, { status: 'placed' })
+        for (const product of order.products) {
+            await productModel.updateOne({ _id: product.productId }, { $inc: { stock: parseInt(product.quantity) } })
+        }
+        return res.status(200).json({ message: "payment fail" })
+    }
+    const checkoutSessionCompleted = event.data.object;
+    const { orderId } = checkoutSessionCompleted.metadata;
+    await orderModel.updateOne({ _id: orderId }, { status: 'placed' })
+    return res.status(200).json({ message: "Done" })
 }
