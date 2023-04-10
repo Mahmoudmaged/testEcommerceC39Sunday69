@@ -16,6 +16,5 @@ router.post('/',
 
 // ==========
 
-router.post('/webhook', express.raw({ type: 'application/json' }), orderController.webHook);
 
 export default router
