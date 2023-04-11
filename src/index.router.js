@@ -34,7 +34,7 @@ const initApp = (app, express) => {
     }
     //Setup API Routing 
     app.get("/", (req, res, next) => {
-        return res.status(200).json({ message: "Deploy work ", env: process.env.DB_LOCAL })
+        return res.status(200).json({ message: "Deploy work  fine", env: process.env.DB_LOCAL })
     })
     app.use(`/auth`, authRouter)
     app.use(`/user`, userRouter)
