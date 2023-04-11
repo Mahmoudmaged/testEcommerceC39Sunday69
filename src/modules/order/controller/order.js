@@ -127,14 +127,14 @@ export const webHook = async (req, res) => {
     try {
         event = stripe.webhooks.constructEvent(req.body, sig, process.env.endpointSecret);
     } catch (err) {
-        res.status(400).send(`Webhook Error: ${err.message}`);
+        res.status(400).send({message:`Webhook Error: ${err.message}` , event , sig});
         return;
     }
     console.log(event);
     if (event.type != 'checkout.session.completed') {
         const checkoutSessionCompleted = event.data.object;
         const { orderId } = checkoutSessionCompleted.metadata;
-        const order = await orderModel.findOneAndDelete({ _id: orderId }, { status: 'placed' })
+        const order = await orderModel.findOneAndDelete({ _id: orderId }, { status: 'rejected' })
         for (const product of order.products) {
             await productModel.updateOne({ _id: product.productId }, { $inc: { stock: parseInt(product.quantity) } })
         }
