@@ -14,5 +14,5 @@ const port = process.env.PORT || 5000
 
 initApp(app, express)
 app.listen(port, () => {
-    console.log(chalk.bgCyanBright('Example app listening on port', chalk.green(`${port}`) ));
+    console.log(chalk.bgCyanBright('Example app listening on port 5000', chalk.green(`${port}`) ));
 })
