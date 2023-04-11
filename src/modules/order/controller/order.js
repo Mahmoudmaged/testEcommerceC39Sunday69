@@ -145,7 +145,7 @@ export const webHook = async (req, res) => {
         return res.status(200).json({ message: "Done" })
     } catch (err) {
         console.log({ err: err.message });
-        return res.status(400).send({ message: `Webhook Error: ${err.message}`, event, sig });
+        return res.status(400).send({ message: `Webhook Error: ${err.message}`, event, sig , hh:req.headers.stripe-signature });
     }
 
 }
