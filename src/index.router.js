@@ -17,7 +17,7 @@ import { webHook } from './modules/order/controller/order.js'
 const initApp = (app, express) => {
 
     app.use((req, res, next) => {
-        if (req.originalUrl === '/webhook') {
+        if (req.originalUrl === '/order/webhook') {
             next()
         } else {
             express.json({})(req, res, next);
