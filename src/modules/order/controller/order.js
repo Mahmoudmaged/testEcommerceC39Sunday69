@@ -127,6 +127,7 @@ export const webHook = async (req, res) => {
     console.log(req.body);
     try {
         const endpointSecret = "whsec_bHK4wulRRW4S0QEkobO3AWhQegjpHEQW";
+        console.log(endpointSecret);
         event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
         console.log(event);
         if (event.type != 'checkout.session.completed') {
