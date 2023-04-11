@@ -126,22 +126,22 @@ export const webHook = async (req, res) => {
 
     try {
         event = stripe.webhooks.constructEvent(req.body, sig, "whsec_d0161292a65d6857537deed1cb7c5eddd9ae5a914864704d38a963533c3b2537");
-    } catch (err) {
-        res.status(400).send({message:`Webhook Error: ${err.message}` , event , sig});
-        return;
-    }
-    console.log(event);
-    if (event.type != 'checkout.session.completed') {
+        console.log(event);
+        if (event.type != 'checkout.session.completed') {
+            const checkoutSessionCompleted = event.data.object;
+            const { orderId } = checkoutSessionCompleted.metadata;
+            const order = await orderModel.findOneAndDelete({ _id: orderId }, { status: 'rejected' })
+            for (const product of order.products) {
+                await productModel.updateOne({ _id: product.productId }, { $inc: { stock: parseInt(product.quantity) } })
+            }
+            return res.status(200).json({ message: "payment fail" })
+        }
         const checkoutSessionCompleted = event.data.object;
         const { orderId } = checkoutSessionCompleted.metadata;
-        const order = await orderModel.findOneAndDelete({ _id: orderId }, { status: 'rejected' })
-        for (const product of order.products) {
-            await productModel.updateOne({ _id: product.productId }, { $inc: { stock: parseInt(product.quantity) } })
-        }
-        return res.status(200).json({ message: "payment fail" })
+        await orderModel.updateOne({ _id: orderId }, { status: 'placed' })
+        return res.status(200).json({ message: "Done" })
+    } catch (err) {
+        return res.status(400).send({ message: `Webhook Error: ${err.message}`, event, sig });
     }
-    const checkoutSessionCompleted = event.data.object;
-    const { orderId } = checkoutSessionCompleted.metadata;
-    await orderModel.updateOne({ _id: orderId }, { status: 'placed' })
-    return res.status(200).json({ message: "Done" })
+
 }

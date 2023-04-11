@@ -24,7 +24,6 @@ const initApp = (app, express) => {
         }
     })
 
-    app.post('/webhook', express.raw({ type: 'application/json' }), webHook);
 
     app.use(cors())
     //convert Buffer Data
