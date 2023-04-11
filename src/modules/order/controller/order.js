@@ -76,7 +76,7 @@ export const createOrder = async (req, res, next) => {
     //reset cart
     await cartModel.updateOne({ userId: req.user._id }, { products: [] })
 
-
+    console.log(order._id.toString());
 
     if (order.paymentType == 'card') {
 
@@ -85,11 +85,11 @@ export const createOrder = async (req, res, next) => {
             const coupon = await stripe.coupons.create({ percent_off: req.body.coupon.amount, duration: 'once' });
             req.body.couponId = coupon.id
         }
-        const { url } = await payment({
+        const session = await payment({
             stripe,
             customer_email: req.user.email,
             metadata: {
-                orderId: order._id
+                orderId: order._id.toString()
             },
             line_items: order.products.map(product => {
                 return {
@@ -109,7 +109,7 @@ export const createOrder = async (req, res, next) => {
             }),
             discounts: req.body.couponId ? [{ coupon: req.body.couponId }] : []
         })
-        return res.status(201).json({ message: "Done", type: "card", url })
+        return res.status(201).json({ message: "Done", type: "card", metadata: session.metadata, url: session.url, session })
     }
 
 
@@ -123,9 +123,11 @@ export const webHook = async (req, res) => {
     const sig = req.headers['stripe-signature'];
 
     let event;
-
+    console.log(sig);
+    console.log(req.body);
     try {
-        event = stripe.webhooks.constructEvent(req.body, sig, "whsec_d0161292a65d6857537deed1cb7c5eddd9ae5a914864704d38a963533c3b2537");
+        const endpointSecret = "whsec_d0161292a65d6857537deed1cb7c5eddd9ae5a914864704d38a963533c3b2537";
+        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
         console.log(event);
         if (event.type != 'checkout.session.completed') {
             const checkoutSessionCompleted = event.data.object;
@@ -138,9 +140,11 @@ export const webHook = async (req, res) => {
         }
         const checkoutSessionCompleted = event.data.object;
         const { orderId } = checkoutSessionCompleted.metadata;
+        console.log({ orderId });
         await orderModel.updateOne({ _id: orderId }, { status: 'placed' })
         return res.status(200).json({ message: "Done" })
     } catch (err) {
+        console.log({ err: err.message });
         return res.status(400).send({ message: `Webhook Error: ${err.message}`, event, sig });
     }
 
