@@ -126,7 +126,7 @@ export const webHook = async (req, res) => {
     console.log(sig);
     console.log(req.body);
     try {
-        const endpointSecret = "whsec_d0161292a65d6857537deed1cb7c5eddd9ae5a914864704d38a963533c3b2537";
+        const endpointSecret = "whsec_bHK4wulRRW4S0QEkobO3AWhQegjpHEQW";
         event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
         console.log(event);
         if (event.type != 'checkout.session.completed') {
@@ -145,7 +145,7 @@ export const webHook = async (req, res) => {
         return res.status(200).json({ message: "Done" })
     } catch (err) {
         console.log({ err: err.message });
-        return res.status(400).send({ message: `Webhook Error: ${err.message}`, event, sig , hh:req.headers['stripe-signature'] });
+        return res.status(400).send({ message: `Webhook Error: ${err.message}`, event, sig, hh: req.headers['stripe-signature'] });
     }
 
 }
