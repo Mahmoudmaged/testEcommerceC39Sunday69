@@ -16,8 +16,15 @@ import cors from 'cors'
 import { webHook } from './modules/order/controller/order.js'
 const initApp = (app, express) => {
 
+    app.use((req, res, next) => {
+        if (req.originalUrl === '/webhook') {
+            next()
+        } else {
+            express.json({})(req, res, next);
+        }
+    })
 
-    app.post('/webhook',webHook);
+    app.post('/webhook', express.raw({ type: 'application/json' }), webHook);
 
     app.use(cors())
     //convert Buffer Data
@@ -26,10 +33,9 @@ const initApp = (app, express) => {
     } else {
         app.use(morgan('common'))
     }
-    app.use(express.json({}))
     //Setup API Routing 
-    app.get("/", (req,res,next)=>{
-        return res.status(200).json({message:"Deploy work " , env:process.env.DB_LOCAL})
+    app.get("/", (req, res, next) => {
+        return res.status(200).json({ message: "Deploy work ", env: process.env.DB_LOCAL })
     })
     app.use(`/auth`, authRouter)
     app.use(`/user`, userRouter)
