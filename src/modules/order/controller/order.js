@@ -76,7 +76,6 @@ export const createOrder = async (req, res, next) => {
     //reset cart
     await cartModel.updateOne({ userId: req.user._id }, { products: [] })
 
-    console.log(order._id.toString());
 
     if (order.paymentType == 'card') {
 
